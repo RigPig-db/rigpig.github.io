@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RIGPIG'S SYSTEMS // TERMINAL OS V2.6</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #463b25;
+            --gunmetal: #2a2f36;
+            --gunmetal-deep: #14181c;
+            /* RigPig primary: industrial orange - FIJADO POR LEY */
+            --accent: #db700b;
+            --accent-glitch: #ff9b28;
+            --accent-glow: rgba(255, 123, 0, 0.534);
+            --accent-glass: rgba(255, 158, 67, 0.103);
+            /* Cyan: secondary / glitch accent only */
+            --accent-cyan: #00d4e8;
+            --accent-cyan-dim: rgba(0, 212, 232, 0.35);
+            --panel-border: rgba(255, 150, 51, 0.28);
+            --chassis-border: rgba(90, 75, 55, 0.85);
+            --text-main: #f0f4f8;
+            --text-muted: #94a3b8;
+            --danger: #ff3a17;
+            --danger-glow: rgba(255, 58, 23, 0.4);
+            --success: #2dcb70;
+            --led-on: #00ff9d;
+        }
+
+        body, html {
+            background-color: #000000;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            cursor: url('cursor.svg') 24 24, auto;
+        }
+
+        a, button, .tab-btn, .connect-btn, .mod-link {
+            cursor: url('cursor.svg') 24 24, pointer;
+        }
+
+        /* Full-viewport CRT stack */
+        .crt-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .crt-overlay::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0) 0px,
+                rgba(0, 0, 0, 0) 2px,
+                rgba(0, 0, 0, 0.13) 2px,
+                rgba(0, 0, 0, 0.13) 4px
+            );
+            opacity: 0.35;
+        }
+        .crt-overlay::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+            box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.5);
+        }
+        .crt-overlay-bar {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 18%;
+            background: linear-gradient(
+                180deg,
+                transparent,
+                rgba(0, 212, 232, 0.055),
+                transparent
+            );
+            animation: crt-roll 14s linear infinite;
+            opacity: 0.45;
+        }
+        @keyframes crt-roll {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(600%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .crt-overlay-bar { animation: none; opacity: 0; }
+            .tab-content { animation: none !important; }
+        }
+
+        @keyframes glitch-hover {
+            0% { transform: translate(0, 0); filter: none; }
+            15% { transform: translate(-2px, 1px); text-shadow: 2px 0 var(--accent-cyan), -2px 0 var(--accent); }
+            30% { transform: translate(2px, -1px); }
+            45% { transform: translate(-1px, 0); filter: hue-rotate(10deg) contrast(1.06); }
+            60% { transform: translate(1px, 1px); text-shadow: -1px 0 var(--accent-glitch), 1px 0 var(--accent-cyan); }
+            100% { transform: translate(0, 0); filter: none; text-shadow: none; }
+        }
+        .tab-btn:hover:not(:disabled),
+        .connect-btn:hover,
+        .mod-link:hover {
+            animation: glitch-hover 0.45s steps(2, end) 1;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .tab-btn:hover:not(:disabled),
+            .connect-btn:hover,
+            .mod-link:hover {
+                animation: none;
+            }
+        }
+
+        h1 { font-family: 'Michroma', sans-serif; }
+        h2, h3, .mod-title, .tab-btn { font-family: 'Orbitron', sans-serif; font-weight: 700; }
+
+        /* ===========================================
+           PROTOCOLO DE CURVATURA ULTRAWIDE (CÓNCAVA)
+        =========================================== */
+        .screen-environment {
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background-color: transparent;
+            position: relative;
+            z-index: 1;
+        }
+
+        .layout-container {
+            max-width: 1720px;
+            margin: 0 auto;
+            padding: 4rem 2rem 8rem 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4rem;
+            position: relative;
+            transform: scale(0.96); 
+            box-shadow: 
+                inset 250px 0px 150px -100px rgba(0,0,0,0.95),
+                inset -250px 0px 150px -100px rgba(0,0,0,0.95);
+            border-radius: 40px; 
+        }
+
+        /* ===========================================
+           FONDO GLOBAL CON ERROR CROMÁTICO
+        =========================================== */
+        .bg-master {
+            position: fixed;
+            top: -2%; left: -2%; right: -2%; bottom: -2%;
+            background-color: #000;
+            z-index: -3;
+            pointer-events: none;
+        }
+
+        .bg-base {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("https://images.steamusercontent.com/ugc/12927199522719719147/6524C51A8B8ECE0E7D50A776DC949C2DED63083F/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false");
+            background-size: cover;
+            background-position: center;
+            filter: blur(6px) brightness(0.35) contrast(1.2);
+        }
+
+        .bg-base::before {
+            content: "";
+            position: absolute;
+            top: 0; left: -6px; right: 6px; bottom: 0;
+            background-image: inherit;
+            background-size: inherit;
+            background-position: inherit;
+            mix-blend-mode: screen;
+            filter: sepia(1) hue-rotate(-30deg) saturate(3) opacity(0.5);
+        }
+
+        .bg-base::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 6px; right: -6px; bottom: 0;
+            background-image: inherit;
+            background-size: inherit;
+            background-position: inherit;
+            mix-blend-mode: screen;
+            filter: sepia(1) hue-rotate(170deg) saturate(3) opacity(0.5);
+        }
+
+        .layout-container::before {
+            content: "";
+            position: absolute;
+            top: -10%; left: -10%; right: -10%; bottom: -10%;
+            background-image: url("https://images.steamusercontent.com/ugc/12927199522719719147/6524C51A8B8ECE0E7D50A776DC949C2DED63083F/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false");
+            background-size: cover;
+            background-position: center;
+            filter: blur(25px) brightness(0.2) contrast(1.4) saturate(0.5); 
+            z-index: -1; 
+            border-radius: 50%;
+        }
+
+        header { text-align: center; padding-bottom: 2rem; position: relative; }
+
+        .header-visuals {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .server-meta {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            color: var(--accent);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.88;
+            font-family: monospace;
+        }
+
+        .glass-panel {
+            background: var(--accent-glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            box-shadow:
+                0 12px 48px rgba(0, 0, 0, 0.75),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+            position: relative;
+            z-index: 1;
+            overflow: visible;
+            padding: 2.5rem;
+            clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+        }
+
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.72;
+            background: linear-gradient(rgba(184, 71, 0, 0.12) 50%, rgba(0, 0, 0, 0.22) 50%),
+                        linear-gradient(90deg, rgba(255, 100, 0, 0.04), rgba(0, 212, 232, 0.02), rgba(255, 100, 0, 0.04));
+            background-size: 100% 3px, 1px 100%;
+            clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            z-index: 2;
+            opacity: 0.55;
+        }
+
+        .glass-panel h2, .glass-panel h3, .glass-panel ul, .glass-panel p, .glass-panel div,
+        .mod-content > * {
+            position: relative;
+            z-index: 2; 
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            text-shadow: 0 0 18px var(--accent-glow);
+        }
+        h2::before { content: ">_"; font-size: 1rem; text-shadow: none; font-weight: bold; color: var(--accent); }
+
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .connect-btn {
+            display: block;
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 12px 20px;
+            text-align: center;
+            text-transform: uppercase;
+            text-decoration: none;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            box-sizing: border-box;
+            
+            /* Estética unificada con .tab-btn */
+            background: linear-gradient(180deg, #252a31 0%, #15191e 100%);
+            color: var(--text-muted);
+            border: 1px solid var(--chassis-border);
+            font-size: 0.85rem;
+            letter-spacing: 1.5px;
+            transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+
+        .connect-btn:hover {
+            color: #1a0f05;
+            background: linear-gradient(180deg, var(--accent) 0%, #b35a08 100%);
+            border-color: var(--accent-glitch);
+            box-shadow: 0 0 22px var(--accent-glow), 0 0 8px var(--accent-cyan-dim);
+        }
+
+        ul { list-style: none; padding: 0; margin: 0; }
+        ul li {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            position: relative;
+            font-size: 0.95rem;
+            color: var(--text-main); 
+        }
+        ul li::before {
+            content: ">>";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-size: 0.8rem;
+            top: 2px;
+            font-weight: bold;
+        }
+
+        .glass-panel p { color: var(--text-main); }
+
+        .danger-zone {
+            border-color: rgba(255, 0, 0, 0.4);
+            box-shadow: inset 0 0 35px rgba(255, 0, 0, 0.228);
+            background: rgba(255, 0, 0, 0.015);
+        }
+        .danger-zone::after {
+             background: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(239, 68, 68, 0.1) 50%), 
+                         linear-gradient(90deg, rgba(239, 68, 68, 0.06), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04));
+        }
+        .danger-zone::before { background: linear-gradient(90deg, transparent, var(--danger), transparent); }
+        .danger-zone h2 { color: var(--danger); text-shadow: 0 0 12px var(--danger-glow); }
+        .danger-zone h2::before { color: var(--danger); content: ">_<"; }
+        .danger-zone ul li { color: var(--text-main); } 
+        .danger-zone ul li::before { color: var(--danger); }
+
+        /* Server Cards - Glassmorphism */
+        .server-card {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            position: relative;
+            z-index: 2;
+            background: rgba(255, 123, 0, 0.04);
+            backdrop-filter: blur(22px) saturate(180%);
+            -webkit-backdrop-filter: blur(22px) saturate(180%);
+            border: 1px solid rgba(255, 151, 82, 0.35);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+        }
+
+        /* CCTV Grid Implementation */
+        .cctv-feed {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 ratio */
+            height: 0;
+            overflow: hidden;
+            border: 1px solid var(--chassis-border);
+            border-top: 2px solid var(--accent);
+            background: #000;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+        .cctv-feed iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            filter: contrast(1.15) saturate(0.85);
+            transition: filter 0.3s ease;
+        }
+        .cctv-feed:hover iframe {
+            filter: none;
+        }
+        .cctv-feed::before {
+            content: "REC";
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: var(--danger);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            z-index: 10;
+            animation: blink 2s infinite;
+            pointer-events: none;
+            text-shadow: 0 0 5px var(--danger);
+        }
+        .cctv-feed::after {
+            content: "";
+            position: absolute;
+            top: 13px;
+            right: 48px;
+            width: 6px;
+            height: 6px;
+            background: var(--danger);
+            border-radius: 50%;
+            z-index: 10;
+            animation: blink 2s infinite;
+            pointer-events: none;
+            box-shadow: 0 0 6px var(--danger);
+        }
+        @keyframes blink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+
+        /* --- ARQUITECTURA DE GRID (NEURAL GALLERY) --- */
+        .neural-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+            padding: 0.5rem 0;
+            position: relative;
+            z-index: 3;
+        }
+
+        .neural-item {
+            position: relative;
+            height: 250px;
+            background: #000;
+            border: 1px solid var(--chassis-border);
+            border-left: 3px solid var(--accent);
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
+            filter: brightness(0.8) contrast(1.1);
+        }
+
+        .neural-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.8s ease, filter 0.8s ease;
+        }
+
+        /* LÓGICA DE FOCO SELECTIVO (ISOLATION) */
+        .neural-grid:hover .neural-item {
+            filter: blur(8px) brightness(0.2) grayscale(1);
+            transform: scale(0.97);
+        }
+
+        .neural-grid .neural-item:hover {
+            filter: blur(0) brightness(1.2) contrast(1.2) grayscale(0);
+            border-left-color: var(--accent-glitch);
+            box-shadow: 0 0 40px var(--accent-glow);
+            transform: translateY(-8px) scale(1.04);
+            z-index: 10;
+        }
+
+        .neural-item:hover img {
+            transform: scale(1.1);
+        }
+
+        /* ETIQUETAS DE NODO */
+        .neural-item::after {
+            content: "NODE_SAMP_0" attr(data-index);
+            position: absolute;
+            bottom: 0;
+            right: 15px;
+            background: var(--accent);
+            color: #000;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 900;
+            font-size: 0.65rem;
+            padding: 4px 12px;
+            clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%);
+            pointer-events: none;
+            transition: background 0.3s;
+        }
+
+        .neural-item:hover::after {
+            background: var(--accent-glitch);
+        }
+
+        @media (max-width: 768px) {
+            .neural-grid { grid-template-columns: 1fr; }
+            .neural-grid:hover .neural-item { filter: none; transform: none; }
+        }
+
+        /* WORKSHOP MODS GRID */
+        .mod-card {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: linear-gradient(165deg, #2f343c 0%, #1b1f24 45%, #12151a 100%);
+            border: 1px solid var(--chassis-border);
+            border-left: 3px solid var(--accent);
+            box-shadow:
+                0 8px 0 rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.07),
+                inset 0 -8px 16px rgba(0, 0, 0, 0.35);
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+            clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+            transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+        }
+        .mod-card::before {
+            content: "";
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, var(--led-on), #006b45 55%, #002a1a 100%);
+            box-shadow: 0 0 10px var(--led-on);
+            z-index: 4;
+            pointer-events: none;
+            opacity: 0.85;
+        }
+        .mod-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.14;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 1px,
+                rgba(219, 112, 11, 0.06) 1px,
+                rgba(219, 112, 11, 0.06) 2px
+            );
+        }
+
+        .tabs-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 1rem;
+            position: relative;
+            z-index: 3;
+        }
+
+        .tab-btn {
+            background: linear-gradient(180deg, #252a31 0%, #15191e 100%);
+            color: var(--text-muted);
+            border: 1px solid var(--chassis-border);
+            padding: 0.8rem 2rem;
+            cursor: pointer;
+            transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1.5px;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+
+        .tab-btn:hover {
+            color: var(--accent-glitch);
+            background: rgba(219, 112, 11, 0.12);
+            border-color: var(--panel-border);
+        }
+
+        .tab-btn.active {
+            color: #1a0f05;
+            background: linear-gradient(180deg, var(--accent) 0%, #b35a08 100%);
+            border-color: var(--accent-glitch);
+            box-shadow: 0 0 22px var(--accent-glow), 0 0 8px var(--accent-cyan-dim);
+        }
+
+        .tab-content { display: none; animation: glitch-appear 0.3s steps(2, end); z-index: 2; position: relative; }
+        .tab-content.active { display: block; }
+
+        @keyframes glitch-appear {
+            0% { opacity: 0; clip-path: inset(10% 0 80% 0); }
+            50% { opacity: 0.5; clip-path: inset(50% 0 10% 0); }
+            100% { opacity: 1; clip-path: inset(0 0 0 0); }
+        }
+
+        .mod-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            z-index: 2; position: relative;
+        }
+
+        .mod-card:hover {
+            transform: translate(2px, -2px);
+            border-left-color: var(--accent-glitch);
+            border-color: rgba(255, 150, 51, 0.45);
+            box-shadow:
+                0 12px 0 rgba(0, 0, 0, 0.35),
+                0 0 26px var(--accent-glow),
+                0 0 10px var(--accent-cyan-dim),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .mod-image-placeholder {
+            height: 160px;
+            background: repeating-linear-gradient(90deg, #0d0f12 0, #0d0f12 2px, #12151a 2px, #12151a 4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            z-index: 2;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.6);
+            box-shadow: inset 0 -2px 8px rgba(219, 112, 11, 0.08);
+        }
+
+        .mod-image-placeholder img {
+            width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;
+            opacity: 0.7; filter: contrast(1.2); transition: opacity 0.3s;
+            z-index: 1;
+        }
+        .mod-card:hover .mod-image-placeholder img { opacity: 1; }
+
+        .missing-asset {
+            color: var(--danger); font-family: 'Orbitron', sans-serif; letter-spacing: 2px; text-align: center;
+            padding: 1rem; font-size: 0.7rem; border: 1px dashed var(--danger); background: rgba(239,68,68,0.05);
+            width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+            z-index: 2; position: relative;
+        }
+
+        .mod-content {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            position: relative;
+            z-index: 3;
+        }
+        
+        .mod-title {
+            color: var(--accent);
+            font-size: 0.95rem; margin-bottom: 0.35rem; text-transform: uppercase;
+            word-break: break-word; letter-spacing: 0.5px;
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+        .mod-card:hover .mod-title { text-shadow: 0 0 16px var(--accent-glow); }
+
+        .mod-id {
+            font-size: 0.6rem;
+            color: var(--accent-glitch);
+            margin-bottom: 0.75rem;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: rgba(219, 112, 11, 0.12);
+            padding: 0.25rem 0.5rem;
+            border: 1px solid var(--panel-border);
+            display: inline-block;
+            width: fit-content;
+            letter-spacing: 0.04em;
+        }
+
+        .mod-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            flex-grow: 1;
+            line-height: 1.55;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+        }
+
+        .mod-link {
+            display: inline-block;
+            padding: 0.6rem 1rem;
+            background: #0f1216;
+            color: var(--accent);
+            border: 1px solid var(--panel-border);
+            text-decoration: none;
+            font-size: 0.68rem;
+            text-align: center;
+            text-transform: uppercase;
+            transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+            margin-top: auto;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 1px;
+            clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+        }
+
+        .mod-link:hover {
+            background: var(--accent);
+            color: #0a0c0e;
+            border-color: var(--accent);
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--gunmetal-deep); border-left: 1px solid var(--panel-border); }
+        ::-webkit-scrollbar-thumb { background: #3d4650; border-radius: 0; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="bg-master">
+    <div class="bg-base"></div>
+</div>
+
+<div class="screen-environment">
+    <div class="layout-container">
+
+        <header>
+            <div class="header-visuals">
+                <img src="https://substackcdn.com/image/fetch/$s_!fk-Z!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fda171b63-94d8-4087-a142-0fef6eae4369_637x358.gif" alt="Techwear Walker"
+                     style="height: 40px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); mix-blend-mode: screen; filter: contrast(1.3) saturate(0.8);">
+                <img src="https://media.giphy.com/media/CXavF2H3zAjoTjd2Kz/giphy.gif" alt="RIGPIG LOGO" 
+                     style="height: 560px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); filter: contrast(1.2);">
+                <img src="https://substackcdn.com/image/fetch/$s_!fk-Z!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fda171b63-94d8-4087-a142-0fef6eae4369_637x358.gif" alt="Techwear Walker"
+                     style="height: 40px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); mix-blend-mode: screen; filter: contrast(1.3) saturate(0.8);">
+            </div>
+
+            <div class="server-meta">
+                <span>「 ⊹ are you ready? ⊹ 」</span>
+                <span> ⭒˗ˏˋ𓆩 ⚠ 𓆪ˎˊ˗⭒ </span>
+                <span>⊹ UK Servers | PvE | 500k Start | Progression ⊹</span>
+            </div>
+        </header>
+
+        <div class="glass-panel">
+            <h2>NETWORK_STATUS</h2>
+            <div class="rules-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                
+                <div class="server-card">
+                    <iframe src="https://cdn.battlemetrics.com/b/standardVertical/35927015.html?foreground=%23ffbe97&linkColor=%23ff9f43&lines=%23c77b00&background=%2300000000&chart=players%3A24H&chartColor=%23ff5f00&showPlayers=1&maxPlayersHeight=30" frameborder="0" style="border:0; width: 100%; height: 260px;" name="agzsz"></iframe>
+                    <a href="https://gamemonitoring.net/dayz/servers/11110923/connect" target="_blank" class="connect-btn">⊹ Connect ⏻ (Deer Isle) ⊹</a>
+                </div>
+
+                <div class="server-card">
+                    <iframe src="https://cdn.battlemetrics.com/b/standardVertical/37255180.html?foreground=%23ffbe97&linkColor=%23ff9f43&lines=%23c77b00&background=%2300000000&chart=players%3A24H&chartColor=%23ff5f00&showPlayers=1&maxPlayersHeight=30" frameborder="0" style="border:0; width: 100%; height: 260px;" name="tgxqn"></iframe>
+                    <a href="https://gamemonitoring.net/dayz/servers/11489359/connect" target="_blank" class="connect-btn">⊹ Connect ⏻ (Chernarus 2035) ⊹</a>
+                </div>
+
+                <div class="server-card">
+                    <iframe src="https://cdn.battlemetrics.com/b/standardVertical/35967861.html?foreground=%23ffbe97&linkColor=%23ff9f43&lines=%23c77b00&background=%2300000000&chart=players%3A24H&chartColor=%23ff5f00&showPlayers=1&maxPlayersHeight=30" frameborder="0" style="border:0; width: 100%; height: 260px;" name="ddttc"></iframe>
+                    <a href="https://gamemonitoring.net/dayz/servers/11489360/connect" target="_blank" class="connect-btn">⊹ Connect ⏻ (Chernarus) ⊹</a>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- PANEL: SYSTEM_IDENTITY -->
+        <div class="glass-panel">
+            <h2>SYSTEM_IDENTITY // LORE & COMBAT</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Sci-Fi survival sandbox. Extraterrestrial contact as routine survival. PvP is the anomaly; PvE is the contract. Wealth through extraction and automation.</p>
+            <div class="rules-grid">
+                <div>
+                    <h3 style="color: var(--text-muted); border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; font-size: 0.85rem;">ALIEN INCURSION & FAUNA</h3>
+                    <ul>
+                        <li><strong>Drop Pods:</strong> Fall from orbit; require pristine crowbar for breach. 4-stage wave containment combat protocols.</li>
+                        <li><strong>Dragons:</strong> Capable of ranged thermal attacks. Elimination yields a 5M drop; heads are commercial assets.</li>
+                        <li><strong>Drones & Synths:</strong> S&D Drones deploy mob swarms on destruction. Robo-Soldiers detonate upon elimination (extract CPUs/Heads with tools).</li>
+                        <li><strong>Aliens:</strong> Found in unknown sectors. Require specialized Alien Knife to dismember limbs for high-value trading.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color: var(--text-muted); border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; font-size: 0.85rem;">WEAPON ENGINEERING</h3>
+                    <ul>
+                        <li><strong>Forge Output:</strong> Kinetic damage for all custom forged weaponry is calibrated at 6M per impact.</li>
+                        <li><strong>Space Weapon Forge:</strong> Synthesizes advanced hardware by fusing Raw Artifacts with the R&M BeastMaster tool.</li>
+                        <li><strong>Hardware Upgrades:</strong> Recoil CPUs mitigate kickback (10%-100%). Heavenly Mag Loader automates empty magazines.</li>
+                        <li><strong>Rare Procurement:</strong> Mech Dino Rifle (Requires Skyrim Albums + Purple Mask). Mech Dragon Pistol (34 artifacts + 150M credits).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL: HARDWARE & ASSETS (Consolidado con Zonas) -->
+        <div class="glass-panel">
+            <h2>EXCLUSION_ZONES & DYNAMIC_EVENTS</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Technology replacing instinct. Machines guarding what's left of us. Survival by design, not chance.</p>
+            <div class="rules-grid">
+                <div>
+                    <h3 style="color: var(--text-muted); border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; font-size: 0.85rem;">TERRITORIAL EVENTS</h3>
+                    <ul>
+                        <li><strong>Event Claiming:</strong> Control over KOTH, Domes, or Arenas requires direct entrance claiming. Claim voids on squad wipe.</li>
+                        <li><strong>No-Fly Zones:</strong> Violating restricted airspace triggers a 10M fine. Landing results in vehicle seizure.</li>
+                        <li><strong>Chernarus Badlands:</strong> Absolute darkness. Restricted to 3 operators max (45-minute cycle limit).</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color: var(--text-muted); border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; font-size: 0.85rem;">VAULTS & CONTAINMENT</h3>
+                    <ul>
+                        <li><strong>DNA Strongrooms:</strong> Accessed via cryptographic keycards. Breach triggers hostile mob deployments on the perimeter.</li>
+                        <li><strong>Containment Domes:</strong> No keycards. One-way doors, 3-player max, 30-40 min cooldown cycles.</li>
+                        <li><strong>Player Load:</strong> Personal inventory capped at 2000 slots. Exo-Skeletons bypass this. Stacking containers inside clothing is bannable.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- CINEMATIC DIVIDER -->
+        <div class="glass-panel" style="padding: 0; clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);">
+            <img src="https://images.steamusercontent.com/ugc/12927199522719719147/6524C51A8B8ECE0E7D50A776DC949C2DED63083F/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"
+                 alt="Cinematic Reference"
+                 style="width: 100%; height: 380px; object-fit: cover; opacity: 0.85; display: block; filter: contrast(1.15) grayscale(0.25); mix-blend-mode: luminosity;">
+            <div style="position: absolute; bottom: 1.5rem; right: 2rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: rgba(0,0,0,0.8); padding: 0.4rem 0.8rem; border: 1px solid var(--accent); z-index: 5; text-transform: uppercase; letter-spacing: 1px;">
+                VISUAL_LOG_01 // CHERNO_2035
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <h2>SETTLEMENT ARCHITECTURE</h2>
+            <div class="rules-grid">
+                <div>
+                    <h3 style="color: var(--text-muted); border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; font-size: 0.85rem;">BUILDING PROTOCOLS</h3>
+                    <ul>
+                        <li><strong>Group Limits:</strong> 1 base & 1 flag per group. Max 5 members. Leaving official Discord = base wipe.</li>
+                        <li><strong>No-Build Zones:</strong> Strictly prohibited in towns, cities, quest areas, and orange map circles.</li>
+                        <li><strong>Perimeter:</strong> 1000m from Traders, 300m from military/events, 250m from existing bases.</li>
+                        <li><strong>Structural Limits:</strong> Max altitude is 4 levels (angled roofs count as full room). Messy/floating bases will be deleted.</li>
+                        <li><strong>Prefab Architecture:</strong> 1 base type allowed. BBP restricted to fencing/doors. Vanilla building prohibited.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color: var(--text-muted); border-bottom: 1px solid var(--panel-border); padding-bottom: 0.5rem; font-size: 0.85rem;">FABRICATION & STORAGE</h3>
+                    <ul>
+                        <li><strong>Storage Capacity:</strong> Hard-cap of 6000 slots per base. Bunkers have infinite storage but require claimed flag.</li>
+                        <li><strong>Hardware Quotas:</strong> Max 2 Solar Panels, 1 Crypto Miner, 1 3D Printer, and 1 of each Workbench per base.</li>
+                        <li><strong>Agriculture:</strong> Limited to 3 Greenhouses. Standard farm plots are disabled.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel danger-zone">
+            <h2>VEHICLE & SERVER PROTOCOLS</h2>
+            <p style="margin-bottom: 1rem; color: #fff;">Vehicles left unparked outside virtual garages or packing wrenches will be permanently repossessed if unattended for 24 hours.</p>
+            <ul style="margin-bottom: 1.5rem;">
+                <li style="color: #fff;"><strong>Release fee:</strong> 500,000 Credits.</li>
+                <li style="color: #fff;"><strong>Physics Stability:</strong> Vehicles must only be packed on completely flat terrain to prevent Enfusion engine glitches.</li>
+                <li style="color: #fff;"><strong>Exploit Penalties:</strong> Using vehicles as elevated platforms to farm mobs incurs a 50M fine and denial of repair services.</li>
+                <li style="color: #fff;"><strong>Admin Services:</strong> Requesting an admin to retrieve a dead bodybag costs a 10M in-game fee.</li>
+            </ul>
+        </div>
+
+        <!-- NEW PANEL: SURVEILLANCE FEED / STREAMERS -->
+        <div class="glass-panel">
+            <h2>SURVEILLANCE_FEED // FIELD_AGENTS</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Transmisiones interceptadas de operadores en terreno. Monitoreo táctico del clúster.</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; position: relative; z-index: 3;">
+                <div class="cctv-feed"><iframe src="https://player.twitch.tv/?video=2721483307&parent=localhost&parent=127.0.0.1" frameborder="0" allowfullscreen="true" scrolling="no"></iframe></div>
+                <div class="cctv-feed"><iframe src="https://www.youtube.com/embed/mM2Tx_J9TAg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                <div class="cctv-feed"><iframe src="https://www.youtube.com/embed/oQel_nBlhn4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                <div class="cctv-feed"><iframe src="https://www.youtube.com/embed/4AJafAr1WV4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                <div class="cctv-feed"><iframe src="https://player.twitch.tv/?video=2690417208&parent=localhost&parent=127.0.0.1" frameborder="0" allowfullscreen="true" scrolling="no"></iframe></div>
+                <div class="cctv-feed"><iframe src="https://player.twitch.tv/?video=2579375593&parent=localhost&parent=127.0.0.1" frameborder="0" allowfullscreen="true" scrolling="no"></iframe></div>
+                <div class="cctv-feed"><iframe src="https://www.youtube.com/embed/MTjkPslbDh4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                <div class="cctv-feed"><iframe src="https://www.youtube.com/embed/kq0zi1_lnMU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+            </div>
+        </div>
+
+        <!-- INYECTADO: NEURAL GALLERY -->
+        <div class="glass-panel">
+            <h2>NEURAL_GALLERY // SAMPLES</h2>
+            <div class="neural-grid">
+                <div class="neural-item" data-index="1"><img src="https://images.steamusercontent.com/ugc/17664231254714508227/0F52208B66C4F624AA2AFDF73F5188C7C90017CE/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+                <div class="neural-item" data-index="2"><img src="https://images.steamusercontent.com/ugc/11626721040965263523/53527C98BC73D7AED5B678F742FAAEBAD0E1DC47/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+                <div class="neural-item" data-index="3"><img src="https://images.steamusercontent.com/ugc/15975499899347102652/99DDD32870A7D2128E3D8CA9D5E03F14612DB0C8/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+                <div class="neural-item" data-index="4"><img src="https://images.steamusercontent.com/ugc/11658933221512423361/BD0159648F595614ED5438FF8365F98598281981/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+                <div class="neural-item" data-index="5"><img src="https://images.steamusercontent.com/ugc/16873954742506210936/908F5B2D4330646AB9A9FCE68E7647ACA3B4A805/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+                <div class="neural-item" data-index="6"><img src="https://images.steamusercontent.com/ugc/18054242834803136518/6606F4571DF25A1C28CB4105D92EB46782275DD6/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+                <div class="neural-item" data-index="7"><img src="https://images.steamusercontent.com/ugc/15038400135486259829/BF2D52E0F8448EB8780A8399D6D9FFF94BB40741/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+                <div class="neural-item" data-index="9"><img src="https://images.steamusercontent.com/ugc/14650046209742985285/6D9B1B74C8D5E8C44B616E47E038D672EEB72CB4/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false"></div>
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <h2>WORKSHOP DATABASE</h2>
+            <p style="color: var(--text-muted); margin-bottom: 2rem; position: relative; z-index: 3;">Lectura de nodos de la red PVE. Seleccionar clúster para visualizar dependencias cargadas.</p>
+
+            <div class="tabs-header">
+                <!-- Se usan los IDs del JS funcional original -->
+                <button class="tab-btn active" onclick="switchTab(event, 'tab-cherno2035')">⊹ Chernarus 2035 ⊹</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-cherno')">⊹ Chernarus ⊹</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-deerisle')">⊹ Deer Isle ⊹</button>
+            </div>
+
+            <div id="tab-cherno2035" class="tab-content active">
+                <div style="display: flex; justify-content: center; margin-bottom: 2.5rem; position: relative; z-index: 3;">
+                    <iframe src="https://cdn.battlemetrics.com/b/horizontal500x80px/37255180.html?foreground=%23e2e8f0&background=%2300000000&lines=%23c77b00&linkColor=%23b35100&chartColor=%23ff5f00" frameborder="0" style="border:0; width: 100%; max-width: 500px; height: 80px;" name="pgpwv"></iframe>
+                </div>
+                <div id="grid-cherno2035" class="mod-grid"></div>
+            </div>
+
+            <div id="tab-cherno" class="tab-content">
+                <div style="display: flex; justify-content: center; margin-bottom: 2.5rem; position: relative; z-index: 3;">
+                    <iframe src="https://cdn.battlemetrics.com/b/horizontal500x80px/35967861.html?foreground=%23ffbe97&background=%2300000000&lines=%23c77b00&linkColor=%23b35100&chartColor=%23ff5f00" frameborder="0" style="border:0; width: 100%; max-width: 500px; height: 80px;" name="uwazn"></iframe>
+                </div>
+                <div id="grid-cherno" class="mod-grid"></div>
+            </div>
+
+            <div id="tab-deerisle" class="tab-content">
+                <div style="display: flex; justify-content: center; margin-bottom: 2.5rem; position: relative; z-index: 3;">
+                    <iframe src="https://cdn.battlemetrics.com/b/horizontal500x80px/35927015.html?foreground=%23ffbe97&background=%2300000000&lines=%23c77b00&linkColor=%23b35100&chartColor=%23ff5f00" frameborder="0" style="border:0; width: 100%; max-width: 500px; height: 80px;" name="kxlta"></iframe>
+                </div>
+                <div id="grid-deerisle" class="mod-grid"></div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // FUENTE DE VERDAD: JS ORIGINAL
+    
+    const titles = {
+        "3704073983": "ReTexRonsModsCherno", "3703396400": "RIGPIGDS", "3702744647": "RigPig MP 1.0",
+        "2947786523": "AntiBloodSplatter", "2206883100": "No Fall Damage", "2857770638": "NO FOG",
+        "3686359453": "chap", "1602372402": "DeerIsle", "2819373632": "BodyBags", "2007900691": "PvZmoD The Dark Horde",
+        "2913803769": "MPG Bears Pack", "3120779051": "MPG_Spawner", "1925413628": "No-Vehicle-Damage",
+        "3422227460": "AutoCarFlip", "3191155841": "BetterTrac", "3387855369": "4KBOSSKVehiclePackage",
+        "2842779598": "Paragon Collectables", "3043818313": "Fallout Collectables", "3008727680": "Skyrim Trading Cards",
+        "3005892409": "Bottle Cap Collectables", "3282237841": "NomNom Collectibles", "2789302074": "MegaFoodPack",
+        "3025712002": "BallerZ Gear", "3155027449": "Krak3nsAmmoStacks1000", "3038215705": "BallerZ SNAFU Upgrades",
+        "2443122116": "SNAFU_Weapons", "3308989311": "RaG_Wheel_Of_Fortune", "2714183642": "DNA Keycards",
+        "3219973018": "NERV_Gaming", "3142819902": "ItsATreee Crafting Plus", "1932611410": "CannabisPlus",
+        "3690289718": "AgricultureCore", "3363783478": "3D Printer", "2960085502": "CBD Sci-Fi generator",
+        "2534155979": "Solar Panel System", "1646187754": "CodeLock", "2874295844": "Instant flagpole build",
+        "3409488132": "Small Flagpole", "2878980498": "RaG_BaseItems", "1565871491": "BuilderItems",
+        "1710977250": "BaseBuildingPlus", "2398911445": "Basic Territories", "3166805289": "PVE System Basic",
+        "3239441684": "ThingsToDo", "2181531192": "Kill Reward System", "3065185420": "AdvancedBanking V2",
+        "1590841260": "Trader Mod", "2936585965": "SearchInventory", "1828439124": "VPPAdminTools",
+        "3619409461": "RigPig-LB", "3556131153": "RaG_Core", "2559539076": "SF_Core", "2545327648": "Dabs Framework",
+        "1559212036": "Community Framework", "2054775140": "dayztrader", "1718378856": "Harkness2.0",
+        "3684258456": "RigPig-D", "3136360147": "WLM PVE System Complete", "3703333310": "ReTexRonsMods",
+        "3664288746": "RP_LoadScreen", "3095550667": "JPJ_Deaf_Assist", "3465841846": "iM7s_DrugRunning",
+        "2051775667": "PvZ Customisable Zombies", "3443311258": "CarPack", "3117613872": "RaG_Hunting_Cabin",
+        "3011222088": "BuildStack X3", "3025154727": "Trader Signs Series II", "3661893125": "RigPig Sky 2035",
+        "3643005181": "Chernarus2035 No Fog", "3638582966": "Chernarus2035", "1934062914": "cbdScfiGenerator212",
+        "1414415691": "LBmasterPub_v3", "1701867344": "pr0xzy_NoWrappingPaper", "3414211474": "ZFFortuneWheel",
+        "3661891389": "RigPig Sky", "3348696867": "MZ KOTH", "2810212624": "Custom Keycards"
+    };
+
+    const images = {
+        "3704073983": "https://images.steamusercontent.com/ugc/16097329944332726742/D121E6EDC16B79D9673C4074132683F6CC3493E7/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3703396400": "https://images.steamusercontent.com/ugc/11003392798583176696/D121E6EDC16B79D9673C4074132683F6CC3493E7/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3702744647": "https://images.steamusercontent.com/ugc/13463840823441769300/664472C80ACDAFEFCAC036C5A293382D2820B224/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2947786523": "https://images.steamusercontent.com/ugc/2075654081406089312/6B50365731A118642326711F52D569F65C679CAF/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2206883100": "https://images.steamusercontent.com/ugc/2073389597094974624/6CA4883326B642387F88E7456CDC37BDB5565726/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2857770638": "https://images.steamusercontent.com/ugc/2487767691347119279/A33FC3E4E1256CFD8D62029ED484F22BAD4BAA4E/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3686359453": "https://images.steamusercontent.com/ugc/13187060560239373232/6DE5ED6E398FA2EB4FB816B2D2B8DCE6FFF36FB3/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1602372402": "https://images.steamusercontent.com/ugc/10492572888761623926/6A464D85A725D7C01E2232A8243E0BCF5DD7C30A/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2819373632": "https://images.steamusercontent.com/ugc/2202883944464902773/FC254908604378A0360A9A3C84E0525CB5BC02D0/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2007900691": "https://images.steamusercontent.com/ugc/16882208200581671891/FF877ADB23829FEC531D54D60809751344E3C616/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2913803769": "https://images.steamusercontent.com/ugc/2296334814339910164/3E63DE541389EC699A15709730C37E041E00D8FD/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3120779051": "https://images.steamusercontent.com/ugc/18686319244529871/3931C8EE014F80E17413A1E2D25EF32BD75193E2/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1925413628": "https://images.steamusercontent.com/ugc/1171447040897605970/FF9FAACD0AAB307C4926E1C2A3DDBF81ED62370C/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3422227460": "https://images.steamusercontent.com/ugc/16672813723935117027/B3565EE7F132BBB586DB6FE336FC603FD3C2A6DB/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3191155841": "https://images.steamusercontent.com/ugc/2451738894346478981/108FB80D18E6F338F8E726E302931872F6A4EEF0/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3387855369": "https://images.steamusercontent.com/ugc/13224355291136728654/E15C7340D097B8495F671E15CC8B9BD343DB6E7B/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2842779598": "https://images.steamusercontent.com/ugc/2504639238665225831/A581CDB2EA97C6E97ED05657A3A3A6BA702A27FE/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3043818313": "https://images.steamusercontent.com/ugc/2080157299050229357/3AD2766ADAA9CE1E88B3DA380E9340EB31760F3A/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3008727680": "https://images.steamusercontent.com/ugc/2080157299060165442/18D10613E6D938D2C9A557121ABDE3B8CD8EC959/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3005892409": "https://images.steamusercontent.com/ugc/2011471682695652196/7B3FA7A4A0B22FB96EAAB4DB9AFE002B2B18C48A/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3282237841": "https://images.steamusercontent.com/ugc/17263211747450282160/E89A913F6018D6C63A736450E08D34DFD42AB111/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2789302074": "https://images.steamusercontent.com/ugc/2297465338545056054/36E8A40BAED338FDEC335880EE0DC9B043B37FB6/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3025712002": "https://images.steamusercontent.com/ugc/52452069786972592/0ECC66D2D3789A88B4C33E4C16CEBF4C994497D1/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3155027449": "https://images.steamusercontent.com/ugc/63718596700522796/22F3661E5020BE47851EBB16B942F1F5AB3D0A11/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3038215705": "https://images.steamusercontent.com/ugc/2070023313191908854/21CABCA133F41EB83E93D72584C76B96D86846C9/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2443122116": "https://images.steamusercontent.com/ugc/1801980500403345047/057725CFB5BE74D84D4C064991D0459270C8FD96/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3308989311": "https://images.steamusercontent.com/ugc/13160793911111198017/19E4E95C89D9E04300B1A7589C4EB25DA213A598/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2714183642": "https://images.steamusercontent.com/ugc/1812141172091548541/163EA2C6D65AEB4F34362B534B9E33E2A2AAD477/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3219973018": "https://images.steamusercontent.com/ugc/15982142938532240219/1CDE32FDB249321C368A279275868FB8DEB71CB5/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3142819902": "https://images.steamusercontent.com/ugc/17035675410900072990/7EB33025871C7E380F8E1338D6AE9F168D647FBD/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1932611410": "https://images.steamusercontent.com/ugc/17726962774495256731/E3C887B300F454254C420D02A3222136523E5E08/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3690289718": "https://images.steamusercontent.com/ugc/15530239601789999384/AC05D8A1E4E66D5A97FCB984655224AC236D15A6/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3363783478": "https://images.steamusercontent.com/ugc/18155687108123803767/37A24E298319C173AF0691845A5B659DC6787727/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2960085502": "https://images.steamusercontent.com/ugc/11321344363596189990/25F249C173599B842073E8A4B7C4F3C3584A4AE0/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2534155979": "https://images.steamusercontent.com/ugc/1699529003967529759/D95A6DC91AADD4C8E5579B77796E18D6B921E302/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1646187754": "https://images.steamusercontent.com/ugc/754842852191533742/A7044E09EFD347E788B5B77D832F7D61845CFA06/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2874295844": "https://images.steamusercontent.com/ugc/5096417937010112984/E4ADC839013C37AC4183B1224898D1F01198430A/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3409488132": "https://images.steamusercontent.com/ugc/10796779765963821/46939CB3177E6C24673011D887D8A3BAD5AB6418/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2878980498": "https://images.steamusercontent.com/ugc/16687750107972627747/8704B4E4EBE796996F7AF7C84187DD3B2EA8FC23/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1565871491": "https://images.steamusercontent.com/ugc/38938569345445671/96AF022788642B1D87D8948E932208B771C4115D/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1710977250": "https://images.steamusercontent.com/ugc/1836915105922968803/C7D90B8C5FA3366374884009F01B67DA15ADABD9/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2398911445": "https://images.steamusercontent.com/ugc/1698402776110712127/4D1CB3093B6C952F50B0FA3CDBE3AB915E445C86/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3166805289": "https://images.steamusercontent.com/ugc/2490005628733494044/B68E883D8AC2C04BAFDA0A0F87DCE7803102F796/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3239441684": "https://images.steamusercontent.com/ugc/2490012515736262313/975097D76E8E9B7D385D62D8B84270F6CB5D3286/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2181531192": "https://images.steamusercontent.com/ugc/5118935530970874263/97BBA3A97BE71BCD4370ECFAA94F6BCC14C6C527/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3065185420": "https://images.steamusercontent.com/ugc/2185994807956303173/91D46F6A35FCA63D372705C8BD70DA84BFF0BBC8/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1590841260": "https://images.steamusercontent.com/ugc/954108744276178687/8461CB8846488A3442D3E82FF4B76893306FD4A6/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2936585965": "https://images.steamusercontent.com/ugc/2029471446796301274/7757E99F8C292B020E67FB69A101216554E5B7F6/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1828439124": "https://images.steamusercontent.com/ugc/15375264736772692049/A4A59D06EAB1D7C2E355A85CE5A60A7D7360005D/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3619409461": "https://images.steamusercontent.com/ugc/17687514777969388998/080D9CEE025C96E5B947B2E1BC038CA3303FAD96/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3556131153": "https://images.steamusercontent.com/ugc/17651382331147143819/C08AA62B27297B05FE7DD60E9B12831D34CCF805/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2559539076": "https://images.steamusercontent.com/ugc/1844802113363576833/D497E15514AC6042726AA71F3F438BA67E9ECD35/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2545327648": "https://images.steamusercontent.com/ugc/15185888921370759744/0B07310EF6B10AF16E61D0BE50EA7637E7FDFAEF/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1559212036": "https://images.steamusercontent.com/ugc/1303178882177497765/484890DF6AC1AE6484045A7C4458E0D1D35DBD05/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3684258456": "https://images.steamusercontent.com/ugc/15305895543197629979/6DE5ED6E398FA2EB4FB816B2D2B8DCE6FFF36FB3/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3136360147": "https://images.steamusercontent.com/ugc/11486115991849251801/40E0DBBC1A4A46C048A40F8442D01576980BC031/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3703333310": "https://images.steamusercontent.com/ugc/13463840823441769300/664472C80ACDAFEFCAC036C5A293382D2820B224/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3664288746": "https://images.steamusercontent.com/ugc/16761160221564602648/C3E4E7891FC3EEE43B430F7A552784E1FB8A34C1/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3095550667": "https://images.steamusercontent.com/ugc/17551544257700907/4BB9E1F13AD635AC323C72F8123F9C5F0337D048/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3465841846": "https://images.steamusercontent.com/ugc/17528125322479871521/05D21DA79DE0A9E98CEAAA17707B3E60F95FEA16/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "2051775667": "https://images.steamusercontent.com/ugc/17502735664114568918/B07581EFEC4C9663F354B6110080045615BF3BDE/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3443311258": "https://images.steamusercontent.com/ugc/9260001661282185527/3710794E850932B30C32886AD9DDAECDF21FFEB1/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3117613872": "https://images.steamusercontent.com/ugc/14415170765720360810/CCB2522D2DCD346888C21CF56FCCF60DB7FBE753/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3011222088": "https://images.steamusercontent.com/ugc/2426965292318658401/68B7F80440EFC25ED20AA8196F24D546C91CEB7A/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3025154727": "https://images.steamusercontent.com/ugc/2252424264021857554/3BF3C0A8073D13E3DCDB34DF4506F78E74BE3463/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3661893125": "https://images.steamusercontent.com/ugc/15066829520454849012/9BAB0E72F88CEF71D4B5A1D003ED84DB5DD59A50/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3643005181": "https://images.steamusercontent.com/ugc/10067633505332695416/C7BC1D9BC81F562DDFD55BE9D716A27399A11C55/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "3638582966": "https://images.steamusercontent.com/ugc/11811572845358476829/53FECB901FC7708158973CA9451B37881B01653C/?imw=512&&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1934062914": "https://images.steamusercontent.com/ugc/15305895543197629979/6DE5ED6E398FA2EB4FB816B2D2B8DCE6FFF36FB3/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1414415691": "https://images.steamusercontent.com/ugc/15305895543197629979/6DE5ED6E398FA2EB4FB816B2D2B8DCE6FFF36FB3/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false",
+        "1701867344": "NO_IMAGE_FOUND ▄︻芫═───💥",
+        "3414211474": "NO_IMAGE_FOUND ▄︻芫═───💥",
+        "3661891389": "NO_IMAGE_FOUND ▄︻芫═───💥",
+        "3348696867": "NO_IMAGE_FOUND ▄︻芫═───💥",
+        "2810212624": "NO_IMAGE_FOUND ▄︻芫═───💥",
+        "2054775140": "NO_IMAGE_FOUND ▄︻芫═───💥",
+        "1718378856": "NO_IMAGE_FOUND ▄︻芫═───💥"
+    };
+
+    const servers = {
+        "deerisle": ["3704073983", "3703396400", "3702744647", "2947786523", "2206883100", "2857770638", "3686359453", "1602372402", "2819373632", "2007900691", "2913803769", "3120779051", "1925413628", "3422227460", "3191155841", "3387855369", "2842779598", "3043818313", "3008727680", "3005892409", "3282237841", "2789302074", "3025712002", "3155027449", "3038215705", "2443122116", "3308989311", "2714183642", "3219973018", "3142819902", "1932611410", "3690289718", "3363783478", "2960085502", "2534155979", "1646187754", "2874295844", "3409488132", "2878980498", "1565871491", "1710977250", "2398911445", "3166805289", "3239441684", "2181531192", "3065185420", "1590841260", "2936585965", "1828439124", "3619409461", "3556131153", "2559539076", "2545327648", "1559212036", "2054775140", "1718378856"],
+        "cherno2035": ["3684258456", "3136360147", "3703333310", "3702744647", "3690289718", "3664288746", "2206883100", "3095550667", "2819373632", "3465841846", "1932611410", "2789302074", "2842779598", "3008727680", "3005892409", "3282237841", "2051775667", "2913803769", "3120779051", "3422227460", "3191155841", "3387855369", "3443311258", "3025712002", "3038215705", "2443122116", "2181531192", "3308989311", "3142819902", "3219973018", "3239441684", "2714183642", "3363783478", "2960085502", "2534155979", "3117613872", "2878980498", "2874295844", "3409488132", "1646187754", "3011222088", "1565871491", "1710977250", "2398911445", "3065185420", "1590841260", "2936585965", "1828439124", "3661893125", "3643005181", "3638582966", "3619409461", "3556131153", "2559539076", "2545327648", "1559212036", "1934062914", "2054775140", "1414415691", "1701867344"],
+        "cherno": ["3387855369", "3136360147", "3414211474", "3282237841", "3704073983", "3690289718", "3702744647", "2051775667", "3664288746", "3661891389", "2181531192", "2206883100", "3239441684", "3348696867", "3120779051", "2913803769", "3422227460", "3191155841", "3443311258", "2714183642", "2810212624", "1932611410", "2842779598", "3005892409", "3008727680", "2789302074", "3025712002", "3038215705", "2443122116", "2819373632", "3117613872", "2878980498", "1565871491", "2960085502", "3363783478", "2534155979", "2874295844", "3409488132", "2398911445", "1646187754", "3011222088", "3219973018", "1710977250", "3025154727", "3065185420", "1590841260", "2936585965", "1828439124", "3556131153", "2559539076", "2545327648", "3619409461", "1559212036", "2054775140", "1414415691"]
+    };
+
+    function escapeHtml(s) {
+        return String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function renderModGrids() {
+        Object.keys(servers).forEach(serverKey => {
+            const gridContainer = document.getElementById(`grid-${serverKey}`);
+            if (!gridContainer) return;
+
+            let htmlOutput = "";
+            
+            servers[serverKey].forEach(modId => {
+                const title = titles[modId] || "MOD_ID_" + modId;
+                const imgUrl = images[modId];
+                
+                const imageContent = (imgUrl && imgUrl !== "NO_IMAGE_FOUND ▄︻芫═───💥") 
+                    ? `<img src="${imgUrl}" alt="${escapeHtml(title)}" loading="lazy" decoding="async">` 
+                    : `<div class="missing-asset">[ OUTSIDE WORKSHOP ]</div>`;
+
+                htmlOutput += `
+                <div class="mod-card">
+                    <div class="mod-image-placeholder">${imageContent}</div>
+                    <div class="mod-content">
+                        <div class="mod-title">${escapeHtml(title)}</div>
+                        <div class="mod-id">ID: ${modId}</div>
+                        <div class="mod-desc">Protocolo de terminal PVE verificado.</div>
+                        <a href="http://steamcommunity.com/sharedfiles/filedetails/?id=${modId}" target="_blank" class="mod-link" rel="noopener">ACCESS WORKSHOP</a>
+                    </div>
+                </div>`;
+            });
+
+            gridContainer.innerHTML = htmlOutput;
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", renderModGrids);
+
+    function switchTab(evt, tabId) {
+        var tabContents = document.getElementsByClassName("tab-content");
+        for (var i = 0; i < tabContents.length; i++) {
+            tabContents[i].classList.remove("active");
+        }
+        
+        var tabBtns = document.getElementsByClassName("tab-btn");
+        for (var i = 0; i < tabBtns.length; i++) {
+            tabBtns[i].classList.remove("active");
+        }
+        
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+</script>
+
+<div class="crt-overlay" aria-hidden="true"><div class="crt-overlay-bar"></div></div>
+</body>
+</html>
