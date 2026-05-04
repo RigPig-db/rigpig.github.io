@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RIGPIG'S SYSTEMS // TERMINAL OS V2.6</title>
     
+    <!-- FAVICON -->
+    <link rel="icon" type="image/gif" href="https://media.giphy.com/media/CXavF2H3zAjoTjd2Kz/giphy.gif">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
@@ -352,6 +355,52 @@
         .danger-zone h2::before { color: var(--danger); content: ">_<"; }
         .danger-zone ul li { color: var(--text-main); } 
         .danger-zone ul li::before { color: var(--danger); }
+
+        /* --- RADAR PULSE / SPINNER --- */
+        .logo-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner-bg {
+            position: absolute;
+            width: 650px;
+            height: 650px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .spinner-bg > div {
+            position: absolute;
+            border: 3px solid var(--accent-glitch);
+            border-radius: 50%;
+            opacity: 1;
+            box-shadow: 0 0 15px var(--accent-glow), inset 0 0 10px var(--accent-glow);
+            animation: ripple-pulse 1.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+        }
+
+        .spinner-bg > div:nth-child(2) {
+            animation-delay: -0.6s;
+        }
+
+        @keyframes ripple-pulse {
+            0% {
+                top: 50%;
+                left: 50%;
+                width: 0;
+                height: 0;
+                opacity: 1;
+            }
+            100% {
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                opacity: 0;
+            }
+        }
 
         /* Server Cards - Glassmorphism */
         .server-card {
@@ -716,11 +765,18 @@
         <header>
             <div class="header-visuals">
                 <img src="https://substackcdn.com/image/fetch/$s_!fk-Z!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fda171b63-94d8-4087-a142-0fef6eae4369_637x358.gif" alt="Techwear Walker"
-                     style="height: 40px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); mix-blend-mode: screen; filter: contrast(1.3) saturate(0.8);">
-                <img src="https://media.giphy.com/media/CXavF2H3zAjoTjd2Kz/giphy.gif" alt="RIGPIG LOGO" 
-                     style="height: 560px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); filter: contrast(1.2);">
+                     style="height: 40px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); mix-blend-mode: screen; filter: contrast(1.3) saturate(0.8); position: relative; z-index: 2;">
+                
+                <div class="logo-wrapper">
+                    <div class="spinner-bg">
+                        <div></div><div></div>
+                    </div>
+                    <img src="https://media.giphy.com/media/CXavF2H3zAjoTjd2Kz/giphy.gif" alt="RIGPIG LOGO" 
+                         style="height: 560px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); filter: contrast(1.2); position: relative; z-index: 2;">
+                </div>
+
                 <img src="https://substackcdn.com/image/fetch/$s_!fk-Z!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fda171b63-94d8-4087-a142-0fef6eae4369_637x358.gif" alt="Techwear Walker"
-                     style="height: 40px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); mix-blend-mode: screen; filter: contrast(1.3) saturate(0.8);">
+                     style="height: 40px; width: auto; border-radius: 12px; border: 1px solid rgba(255, 158, 67, 0); box-shadow: 0 0 20px rgba(255, 158, 67, 0); mix-blend-mode: screen; filter: contrast(1.3) saturate(0.8); position: relative; z-index: 2;">
             </div>
 
             <div class="server-meta">
